@@ -63,6 +63,11 @@ export default class Emotes extends FrankerFaceZ.utilities.module.Module {
 				this.updateChannelSets();
 			}
 		});
+
+		this.emotes.setProvider('addon.seventv_emotes', {
+			name: this.addon_manifest.name,
+			icon: this.addon_manifest.icon,
+		});
 	}
 
 	onEnable() {
@@ -120,6 +125,7 @@ export default class Emotes extends FrankerFaceZ.utilities.module.Module {
 		if (ffzEmotes && ffzEmotes.length > 0) {
 			channel.addSet('addon.seventv_emotes', setID, {
 				title: 'Channel Emotes',
+				title_is_channel: true,
 				source: '7TV',
 				icon: this.setIcon,
 				emotes: ffzEmotes

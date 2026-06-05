@@ -33,13 +33,27 @@ export default class API extends FrankerFaceZ.utilities.module.Module {
 	}
 
 	async requestJSON(route, options = {}) {
-		const response = await this.makeRequest(route, options);
-
-		if (response.ok) {
-			const json = await response.json();
-			return json;
+		try {
+			const response = await this.makeRequest(route, 
+				{
+					...options,
+					headers: {
+						'Content-Type': 'application/json'
+					}
+				});
+	
+			if (response.ok) {
+				const json = await response.json();
+				return json;
+			}
+			else {
+				this.log.error(`Request to the following URL was not successful: ${route} - HTTP Response Code: ${response.status}`);
+			}
 		}
-
+		catch (error) {
+			this.log.error(`Request to the following URL encountered an error: ${route}`);
+			this.log.error(error);
+		}
 		return null;
 	}
 
@@ -100,8 +114,12 @@ export class Emotes extends FrankerFaceZ.utilities.module.Module {
 }
 
 export class Cosmetics extends FrankerFaceZ.utilities.module.Module {
-	fetchAvatars() {
-		return {};
-		// return this.parent.requestObject('cosmetics/avatars?map_to=login');
+	fetchAvatars(identifiers) {
+		return this.parent.requestJSON('bridge/event-api', {
+			method: 'POST',
+			body: JSON.stringify({
+				identifiers
+			})
+		});
 	}
 }

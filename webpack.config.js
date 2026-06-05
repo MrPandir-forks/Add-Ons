@@ -5,6 +5,7 @@ const glob = require('glob');
 const fs = require('fs');
 
 //const MiniCssExtractPlugin = require("mini-css-extract-plugin");
+const { CycloneDxWebpackPlugin } = require('@cyclonedx/webpack-plugin');
 const { VueLoaderPlugin } = require('vue-loader');
 const { WebpackManifestPlugin } = require('webpack-manifest-plugin');
 const { EsbuildPlugin } = require('esbuild-loader');
@@ -29,7 +30,7 @@ const FILE_PATH = DEV_SERVER
 	? 'https://localhost:8001/script/addons/'
 	: FOR_EXTENSION
 		? ''
-		: 'https://cdn.frankerfacez.com/static/addons/';
+		: 'https://cdn2.frankerfacez.com/static/addons/';
 
 
 console.log('NODE_ENV:', process.env.NODE_ENV);
@@ -100,6 +101,8 @@ const config = {
 	
 	target: ['web', TARGET],
 	
+	node: false,
+
 	entry: ENTRIES,
 	
 	externals: [
@@ -134,6 +137,11 @@ const config = {
 	},
 	
 	plugins: [
+		new CycloneDxWebpackPlugin({
+			specVersion: '1.6',
+			outputLocation: '../addons-bom',
+			includeWellknown: false
+		}),
 		new VueLoaderPlugin(),
 		new EsbuildPlugin({
 			define: {
@@ -174,6 +182,7 @@ const config = {
 	
 	module: {
 		rules: [
+			// Register method replace to include the addon's name
 			{
 				test: /index\.jsx?$/,
 				exclude: /node_modules/,
@@ -185,7 +194,28 @@ const config = {
 						if ( folder.startsWith('src\\') || folder.startsWith('src/') )
 							folder = folder.substring(4);
 						
-						return `.register(${JSON.stringify(folder)});`;
+						const manifest = MANIFESTS[folder];
+						if (!manifest)
+							return `.register();`;
+
+						return `.register(${JSON.stringify(folder)}, null, ${JSON.stringify(manifest?.version ?? '0.0.0-unknown')});`;
+					}
+				}
+			},
+			// Inline variable for addon version
+			{
+				test: /\.jsx?$/,
+				exclude: /node_modules/,
+				loader: 'string-replace-loader',
+				options: {
+					search: /__addon_version__/g,
+					replace(match, offset, string) {
+						let folder = path.relative(this.rootContext, path.dirname(this.resource));
+						if ( folder.startsWith('src\\') || folder.startsWith('src/') )
+							folder = folder.split(path.sep)[1];
+						
+						const manifest = MANIFESTS[folder];
+						return JSON.stringify(manifest?.version ?? '0.0.0-unknown');
 					}
 				}
 			},
@@ -274,7 +304,6 @@ if ( DEV_SERVER )
 	config.devServer = {
 		client: false,
 		webSocketServer: false,
-		magicHtml: false,
 		liveReload: false,
 		hot: false,
 		
@@ -305,7 +334,7 @@ if ( DEV_SERVER )
 				next();
 			});
 			
-			return middlewares;
+			return middlewares.filter(middleware => middleware.name !== 'cross-origin-header-check');
 		}
 	};
 

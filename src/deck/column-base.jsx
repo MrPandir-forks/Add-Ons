@@ -400,6 +400,10 @@ export default class ColumnBase {
 		return false;
 	}
 
+	useHypeTrains() {
+		return false;
+	}
+
 	useTags() {
 		return true;
 	}
@@ -445,6 +449,10 @@ export class LiveColumnBase extends ColumnBase {
 		return true;
 	}
 
+	useHypeTrains() {
+		return true;
+	}
+
 	getComponent(item) { // eslint-disable-line no-unused-vars
 		return 'bd-live-card';
 	}
@@ -482,17 +490,13 @@ export class LiveColumnBase extends ColumnBase {
 			this.languages,
 			this.allowHideUnlisted() ? this.settings.hide_unlisted : false,
 			this.global_settings.blocked_titles,
-			this.global_settings.blocked_flags
+			this.global_settings.blocked_flags,
+			this.global_settings.blocked_users,
+			this.settings.show_offline
 		));
 	}
 
-	static filterStream(item, hide_reruns, blocked_games, required_tags, blocked_tags, filter_games, filter_blocked_games, languages, hide_unlisted, blocked_titles, blocked_flags) {
-		if ( ! item.stream )
-			return false;
-
-		if ( hide_reruns && item.stream.type === 'rerun' )
-			return false;
-
+	static filterStream(item, hide_reruns, blocked_games, required_tags, blocked_tags, filter_games, filter_blocked_games, languages, hide_unlisted, blocked_titles, blocked_flags, blocked_users, show_offline) {
 		const game = item.broadcastSettings && item.broadcastSettings.game;
 		if ( blocked_games && game && blocked_games.includes(game.name) )
 			return false;
@@ -512,6 +516,36 @@ export class LiveColumnBase extends ColumnBase {
 				return false;
 		}
 
+		if ( blocked_users ) {
+			if (blocked_users[0])
+				blocked_users[0].lastIndex = -1;
+			if (blocked_users[1])
+				blocked_users[1].lastIndex = -1;
+
+			if (( blocked_users[0] && blocked_users[0].test(item.login) ) ||
+				( blocked_users[1] && blocked_users[1].test(item.login) )
+			)
+				return false;
+		}
+
+		if ( item.broadcastSettings?.title && blocked_titles ) {
+			if (blocked_titles[0])
+				blocked_titles[0].lastIndex = -1;
+			if (blocked_titles[1])
+				blocked_titles[1].lastIndex = -1;
+
+			if (( blocked_titles[0] && blocked_titles[0].test(item.broadcastSettings.title) ) ||
+				( blocked_titles[1] && blocked_titles[1].test(item.broadcastSettings.title) )
+			)
+				return false;
+		}
+
+		if ( ! item?.stream )
+			return show_offline;
+
+		if ( hide_reruns && item.stream.type === 'rerun' )
+			return false;
+
 		if ( required_tags || blocked_tags ) {
 			const tags = get('stream.freeformTags', item).map(name => name && name.toLowerCase()) || [];
 				//lang = item.broadcastSettings && item.broadcastSettings.language && item.broadcastSettings.language.toLowerCase();
@@ -526,12 +560,6 @@ export class LiveColumnBase extends ColumnBase {
 					if ( tags.includes(tag) )
 						return false;
 		}
-
-		if ( item.broadcastSettings?.title && blocked_titles &&
-			(( blocked_titles[0] && blocked_titles[0].test(item.broadcastSettings.title) ) ||
-			( blocked_titles[1] && blocked_titles[1].test(item.broadcastSettings.title) ))
-		)
-			return false;
 
 		if ( blocked_flags ) {
 			const flags = get('stream.contentClassificationLabels.@each.id', item) ?? [];
@@ -644,11 +672,15 @@ export class ClipColumnBase extends ColumnBase {
 			this.filter_games,
 			this.filter_blocked_games,
 			this.global_settings.blocked_titles,
-			this.global_settings.blocked_flags
+			this.global_settings.blocked_flags,
+			this.global_settings.blocked_users
 		));
 	}
 
-	static filterClip(item, blocked_games, filter_games, filter_blocked_games, blocked_titles, blocked_flags) {
+	static filterClip(item, blocked_games, filter_games, filter_blocked_games, blocked_titles, blocked_flags, blocked_users) {
+		if ( ! item )
+			return false;
+
 		if ( blocked_games && item.game && blocked_games.includes(item.game.name) )
 			return false;
 
@@ -658,11 +690,29 @@ export class ClipColumnBase extends ColumnBase {
 		if ( filter_blocked_games && item.game && filter_blocked_games.includes(item.game.id) )
 			return false;
 
-		if ( item.title && blocked_titles &&
-			(( blocked_titles[0] && blocked_titles[0].test(item.title) ) ||
-			( blocked_titles[1] && blocked_titles[1].test(item.title) ))
-		)
-			return false;
+		if ( item.broadcaster?.login && blocked_users ) {
+			if (blocked_users[0])
+				blocked_users[0].lastIndex = -1;
+			if (blocked_users[1])
+				blocked_users[1].lastIndex = -1;
+
+			if (( blocked_users[0] && blocked_users[0].test(item.broadcaster.login) ) ||
+				( blocked_users[1] && blocked_users[1].test(item.broadcaster.login) )
+			)
+				return false;
+		}
+
+		if ( item.title && blocked_titles ) {
+			if (blocked_titles[0])
+				blocked_titles[0].lastIndex = -1;
+			if (blocked_titles[1])
+				blocked_titles[1].lastIndex = -1;
+
+			if (( blocked_titles[0] && blocked_titles[0].test(item.title) ) ||
+				( blocked_titles[1] && blocked_titles[1].test(item.title) )
+			)
+				return false;
+		}
 
 		if ( blocked_flags ) {
 			const flags = get('contentClassificationLabels.@each.id', item) ?? [];
@@ -793,11 +843,15 @@ export class VideoColumnBase extends ColumnBase {
 			this.filter_games,
 			this.filter_blocked_games,
 			this.global_settings.blocked_titles,
-			this.global_settings.blocked_flags
+			this.global_settings.blocked_flags,
+			this.global_settings.blocked_users
 		));
 	}
 
-	static filterVideo(item, no_recordings, types, blocked_games, required_tags, blocked_tags, filter_games, filter_blocked_games, blocked_titles, blocked_flags) {
+	static filterVideo(item, no_recordings, types, blocked_games, required_tags, blocked_tags, filter_games, filter_blocked_games, blocked_titles, blocked_flags, blocked_users) {
+		if ( ! item )
+			return false;
+
 		if ( no_recordings && item.status === 'RECORDING' )
 			return false;
 
@@ -827,11 +881,29 @@ export class VideoColumnBase extends ColumnBase {
 						return false;
 		}
 
-		if ( item.title && blocked_titles &&
-			(( blocked_titles[0] && blocked_titles[0].test(item.title) ) ||
-			( blocked_titles[1] && blocked_titles[1].test(item.title) ))
-		)
-			return false;
+		if ( item.owner?.login && blocked_users ) {
+			if (blocked_users[0])
+				blocked_users[0].lastIndex = -1;
+			if (blocked_users[1])
+				blocked_users[1].lastIndex = -1;
+
+			if (( blocked_users[0] && blocked_users[0].test(item.owner.login) ) ||
+				( blocked_users[1] && blocked_users[1].test(item.owner.login) )
+			)
+				return false;
+		}
+
+		if ( item.title && blocked_titles ) {
+			if (blocked_titles[0])
+				blocked_titles[0].lastIndex = -1;
+			if (blocked_titles[1])
+				blocked_titles[1].lastIndex = -1;
+
+			if (( blocked_titles[0] && blocked_titles[0].test(item.title) ) ||
+				( blocked_titles[1] && blocked_titles[1].test(item.title) )
+			)
+				return false;
+		}
 
 		if ( blocked_flags ) {
 			const flags = get('contentClassificationLabels.@each.id', item) ?? [];

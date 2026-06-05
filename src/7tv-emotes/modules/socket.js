@@ -211,7 +211,7 @@ export default class Socket extends FrankerFaceZ.utilities.module.Module {
 		
 		this.siteChat.addNotice(channel.login, {
 			message,
-			icon: new URL('https://cdn.frankerfacez.com/static/addons/7tv-emotes/logo.png'),
+			icon: new URL('https://cdn2.frankerfacez.com/static/addons/7tv-emotes/logo.png'),
 			tokenize
 		});
 	}
@@ -252,9 +252,11 @@ export default class Socket extends FrankerFaceZ.utilities.module.Module {
 				else if (kind === 'BADGE') {
 					this.badges.addBadge(data);
 				}
-				else if (kind === 'AVATAR') {
-					this.avatars.receiveAvatarData(data);
-				}
+				// Deprecated because it was causing too many issues on their websocket
+				// It's using an API endpoint now
+				// else if (kind === 'AVATAR') {
+				// 	this.avatars.receiveAvatarData(data);
+				// }
 			}
 			else if (type === 'entitlement.create') {
 				const object = body.object;
@@ -348,7 +350,7 @@ export default class Socket extends FrankerFaceZ.utilities.module.Module {
 			this.log.info('Socket: Connecting to socket server...');
 		}
 
-		this.socket = new WebSocket('wss://events.7tv.io/v3');
+		this.socket = new WebSocket(`wss://events.7tv.io/v3?app=ffz&version=${__addon_version__}`);
 
 		this.socket.onopen = () => {
 			if (!is_planned_reconnect) {
